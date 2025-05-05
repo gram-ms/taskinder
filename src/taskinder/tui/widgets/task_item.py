@@ -64,4 +64,46 @@ class TaskItem(ListItem):
 
 
 class TaskListView(ListView):
-    pass
+    def __init__(self, *children: ListItem, **kwargs) -> None:
+        super().__init__(*children, initial_index=None, **kwargs)
+
+    @property
+    def has_overflow(self) -> bool:
+        return self.virtual_size.height > self.size.height
+
+    @property
+    def allow_vertical_scroll(self) -> bool:
+        return self.has_overflow and super().allow_vertical_scroll
+
+    def _reset_scroll(self) -> None:
+        self.scroll_y = 0
+        self.scroll_target_y = 0
+
+    def refresh_scroll_state(self) -> None:
+        overflow_y = "auto" if self.has_overflow else "hidden"
+        if self.styles.overflow_y != overflow_y:
+            self.styles.overflow_y = overflow_y
+        if not self.has_overflow:
+            self._reset_scroll()
+
+    def sync_state(self) -> None:
+        self.refresh_scroll_state()
+        next_index = self.index if self._is_valid_index(self.index) else (0 if self.children else None)
+        if self.index != next_index:
+            self.index = next_index
+
+    def action_cursor_down(self) -> None:
+        if not self.has_overflow:
+            return
+        super().action_cursor_down()
+
+    def action_cursor_up(self) -> None:
+        if not self.has_overflow:
+            return
+        super().action_cursor_up()
+
+    def on_mount(self) -> None:
+        self.call_after_refresh(self.sync_state)
+
+    def on_resize(self) -> None:
+        self.call_after_refresh(self.sync_state)
