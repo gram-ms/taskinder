@@ -1,0 +1,16 @@
+[project]
+name = "taskinder"
+dynamic = ["version"]
+
+
+[tool.setuptools.dynamic]
+version = {attr = "taskinder.__version__"}
+
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
