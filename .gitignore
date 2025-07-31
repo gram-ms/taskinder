@@ -209,3 +209,5 @@ __marimo__/
 #asdf
 .tool-versions
 
+db.json
+imps.py

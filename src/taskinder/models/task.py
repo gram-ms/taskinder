@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from enum import Enum
 from datetime import datetime
 
@@ -12,7 +12,7 @@ class TaskStatus(Enum):
 @dataclass
 class Task:
     """Represents a task in the task management system."""
-    id: int  # Unique identifier for the task
+    id: str  # Unique identifier for the task
     title: str  # Title of the task
     description: str  # Description of the task
     status: TaskStatus = TaskStatus.TODO  # Current status of the task
@@ -35,3 +35,17 @@ class Task:
 
         self.status = new_status
         self.updated_at = datetime.now()  # Update the timestamp
+
+    def to_dict(self) -> dict:
+        """Convert the task to a dictionary."""
+        return asdict(self)
+
+    def __str__(self):
+        """String representation of the task."""
+        return f"""
+        Task(id={self.id},
+        title='{self.title}',
+        description='{self.description}',
+        status={self.status.value},
+        created_at={self.created_at},
+        updated_at={self.updated_at})"""
