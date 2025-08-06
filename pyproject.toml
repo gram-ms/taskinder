@@ -1,6 +1,9 @@
 [project]
 name = "taskinder"
 dynamic = ["version"]
+dependencies = [
+    "platformdirs>=4.0.0"
+]
 
 
 [tool.setuptools.dynamic]

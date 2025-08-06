@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict, field
 from enum import Enum
 from datetime import datetime
 
@@ -12,26 +12,36 @@ class TaskStatus(Enum):
 @dataclass
 class Task:
     """Represents a task in the task management system."""
-    id: int  # Unique identifier for the task
-    title: str  # Title of the task
-    description: str  # Description of the task
-    status: TaskStatus = TaskStatus.TODO  # Current status of the task
-    created_at: datetime = datetime.now()  # Timestamp when the task created
-    updated_at: datetime = datetime.now()  # Timestamp last updated
+
+    id: str
+    title: str
+    description: str
+    status: TaskStatus = TaskStatus.TODO
+    created_at: datetime = field(default_factory=datetime.now)
+    updated_at: datetime = field(default_factory=datetime.now)
 
     def __post_init__(self):
-        """Post-initialization checks to ensure data integrity."""
-        if not isinstance(self.status, TaskStatus):
-            raise ValueError("status must be an instance of TaskStatus Enum")
-        if not isinstance(self.created_at, datetime):
-            raise ValueError("created_at must be a datetime instance")
-        if not isinstance(self.updated_at, datetime):
-            raise ValueError("updated_at must be a datetime instance")
+        if isinstance(self.status, str):
+            self.status = TaskStatus(self.status)
 
     def update_status(self, new_status: TaskStatus):
-        """Update the status of the task."""
-        if not isinstance(new_status, TaskStatus):
-            raise ValueError("new_status must be an instance of TaskStatus")
-
+        """Update the status of the task and timestamp."""
         self.status = new_status
         self.updated_at = datetime.now()  # Update the timestamp
+
+    def to_dict(self) -> dict:
+        """Convert the task to a dictionary, ready for serialization."""
+        data = asdict(self)
+        data["status"] = self.status.value
+        data["created_at"] = self.created_at.isoformat()
+        data["updated_at"] = self.updated_at.isoformat()
+        return data
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Task":
+        "Creates a instance of Task from dict."
+        data["status"] = TaskStatus(data["status"])
+        data["created_at"] = datetime.fromisoformat(data["created_at"])
+        data["updated_at"] = datetime.fromisoformat(data["updated_at"])
+        return cls(**data)
+
