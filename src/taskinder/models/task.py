@@ -44,4 +44,4 @@ class Task:
         data["created_at"] = datetime.fromisoformat(data["created_at"])
         data["updated_at"] = datetime.fromisoformat(data["updated_at"])
         return cls(**data)
-        
+
