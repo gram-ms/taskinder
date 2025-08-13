@@ -5,7 +5,6 @@ from .storage.task_repository import TaskRepository
 
 
 class TaskService:
-
     def __init__(self, repository: TaskRepository):
         self._repository = repository
 
