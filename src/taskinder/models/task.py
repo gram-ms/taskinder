@@ -27,7 +27,12 @@ class Task:
     def update_status(self, new_status: TaskStatus):
         """Update the status of the task and timestamp."""
         self.status = new_status
-        self.updated_at = datetime.now()  # Update the timestamp
+        self.updated_at = datetime.now()
+
+    def update_title(self, new_title: str):
+        """Update the title of the task"""
+        self.title = new_title
+        self.updated_at = datetime.now()
 
     def to_dict(self) -> dict:
         """Convert the task to a dictionary, ready for serialization."""
@@ -44,4 +49,3 @@ class Task:
         data["created_at"] = datetime.fromisoformat(data["created_at"])
         data["updated_at"] = datetime.fromisoformat(data["updated_at"])
         return cls(**data)
-
