@@ -13,7 +13,7 @@ class TaskStatus(Enum):
 class Task:
     """Represents a task in the task management system."""
 
-    id: str
+    id: int
     title: str
     description: str
     status: TaskStatus = TaskStatus.TODO

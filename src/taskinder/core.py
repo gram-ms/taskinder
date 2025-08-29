@@ -1,5 +1,4 @@
 from typing import List, Optional
-import uuid
 from .models.task import Task, TaskStatus
 from .storage.task_repository import TaskRepository
 
@@ -11,7 +10,7 @@ class TaskService:
     def get_all_tasks(self) -> List[Task]:
         return self._repository.get_all()
 
-    def get_task_by_id(self, task_id: str) -> Optional[Task]:
+    def get_task_by_id(self, task_id: int) -> Optional[Task]:
         """Get a task by its id."""
         return self._repository.find_by_id(task_id)
 
@@ -31,13 +30,14 @@ class TaskService:
         if not title:
             raise ValueError("Title cannot be empty.")
 
-        new_task = Task(id=str(uuid.uuid4()), title=title, description=description)
+        new_id = self._repository.get_new_id()
+        new_task = Task(id=new_id, title=title, description=description)
         self._repository.add(new_task)
         return new_task
 
     def update_task_by_id(
         self,
-        task_id: str,
+        task_id: int,
         title: Optional[str] = None,
         description: Optional[str] = None,
         status: Optional[TaskStatus] = None,
@@ -57,10 +57,6 @@ class TaskService:
         self._repository.update(task)
         return task
 
-    def delete_task_by_id(self, task_id: str) -> bool:
+    def delete_task_by_id(self, task_id: int) -> bool:
         """Deletes a task by its ID."""
-        try:
-            self._repository.delete(task_id)
-            return True
-        except ValueError:
-            return False
+        return self._repository.delete(task_id)

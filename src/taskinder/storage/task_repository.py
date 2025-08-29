@@ -3,7 +3,16 @@ from typing import List, Dict, Any, Optional
 from ..models.task import Task, TaskStatus
 import json
 
-JsonData = List[Dict[str, Any]]
+JsonData = Dict[str, Any]
+
+
+# pattern example
+# {
+#     "last_id": 0,
+#     "tasks": [
+#         { "id": 1, "title": "task 1", ...}
+#     ]
+# }
 
 
 class TaskRepository:
@@ -17,22 +26,23 @@ class TaskRepository:
         self.file_path = Path(file_path)
         self.file_path.parent.mkdir(parents=True, exist_ok=True)
         if not self.file_path.exists():
-            with open(self.file_path, "w", encoding="utf-8") as _file:
-                json.dump([], _file)
+            self._save_data({"last_id": 0, "tasks": []})
 
     def _load_data(self) -> JsonData:
         """Loads raw data from the JSON file."""
         try:
             with open(self.file_path, "r", encoding="utf-8") as _file:
                 if self.file_path.stat().st_size == 0:
-                    return []
+                    return {"last_id": 0, "tasks": []}
                 data = json.load(_file)
-            if not isinstance(data, list):
-                raise TypeError(f"Data in {self.file_path} is not a list.")
+            if (
+                not isinstance(data, dict)
+                or "tasks" not in data
+                or "last_id" not in data
+            ):
+                raise TypeError(f"Data in {self.file_path}, invalid structure")
             return data
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Error decoding JSON from {self.file_path}: {e}")
-        except (TypeError, IOError) as e:
+        except (json.JSONDecodeError, TypeError, IOError) as e:
             raise ValueError(f"Error loading data from {self.file_path}: {e}")
 
     def _save_data(self, data: JsonData) -> None:
@@ -43,12 +53,23 @@ class TaskRepository:
         except IOError as e:
             raise ValueError(f"Error saving data to {self.file_path}: {e}")
 
+    def get_new_id(self) -> int:
+        """Gets a new ID and increments the counter."""
+        data = self._load_data()
+        if len(data["tasks"]) == 0:
+            new_id = 1           
+        else:
+            new_id = data["last_id"] + 1
+        data["last_id"] = new_id
+        self._save_data(data)
+        return new_id
+
     def get_all(self) -> List[Task]:
         """
         Loads all tasks from the JSON file and converts them to Task objects.
         """
         raw_data = self._load_data()
-        return [Task.from_dict(item) for item in raw_data]
+        return [Task.from_dict(item) for item in raw_data["tasks"]]
 
     def save_all(self, tasks: List[Task]) -> None:
         """
@@ -61,44 +82,56 @@ class TaskRepository:
     def add(self, task: Task) -> None:
         """
         Adds a single task to the JSON file.
-        This is less efficient than 'save_all' for multiple additions.
         """
-        all_tasks = self.get_all()
-        all_tasks.append(task)
-        self.save_all(all_tasks)
+        data = self._load_data()
+        data["tasks"].append(task.to_dict())
+        self._save_data(data)
 
-    def find_by_id(self, task_id: str) -> Optional[Task]:
+    def find_by_id(self, task_id: int) -> Optional[Task]:
         """Finds a task by its ID."""
-        return next((task for task in self.get_all() if task.id == task_id), None)
+        for task_data in self._load_data()["tasks"]:
+            if task_data["id"] == task_id:
+                return Task.from_dict(task_data)
+        return None
 
     def find_by_title(self, task_title: str) -> List[Task]:
         """Finds all tasks with a given title."""
-        return [task for task in self.get_all() if task.title == task_title]
+        return [
+            Task.from_dict(t)
+            for t in self._load_data()["tasks"]
+            if t["title"] == task_title
+        ]
 
     def find_by_status(self, status: TaskStatus) -> List[Task]:
         """Finds all tasks with a given status."""
-        return [task for task in self.get_all() if task.status == status]
+        return [
+            Task.from_dict(t)
+            for t in self._load_data()["tasks"]
+            if t["status"] == status.value
+        ]
 
     def update(self, updated_task: Task) -> None:
         """Updates an existing task in the JSON file."""
-        all_tasks = self.get_all()
+        data = self._load_data()
         task_found = False
-        for i, task in enumerate(all_tasks):
-            if task.id == updated_task.id:
-                all_tasks[i] = updated_task
+        for n, task_data in enumerate(data["tasks"]):
+            if task_data["id"] == updated_task.id:
+                data["tasks"][n] = updated_task.to_dict()
                 task_found = True
                 break
         if not task_found:
             raise ValueError(f"Task with ID '{updated_task.id}' not found.")
-        self.save_all(all_tasks)
+        self._save_data(data)
 
-    def delete(self, task_id: str) -> None:
-        """Deletes a task by its ID."""
-        all_tasks = self.get_all()
-        original_count = len(all_tasks)
-        tasks_to_keep = [task for task in all_tasks if task.id != task_id]
+    def delete(self, task_id: int) -> bool:
+        """Deletes a task by ID."""
+        data = self._load_data()
+        original_count = len(data["tasks"])
+        tasks_to_keep = [task for task in data["tasks"] if task["id"] != task_id]
 
         if len(tasks_to_keep) == original_count:
-            raise ValueError(f"Task with ID '{task_id}' not found.")
+            return False  # Nothing was deleted
 
-        self.save_all(tasks_to_keep)
+        data["tasks"] = tasks_to_keep
+        self._save_data(data)
+        return True
