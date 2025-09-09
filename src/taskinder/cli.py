@@ -2,7 +2,6 @@ from .models.task import TaskStatus
 from .storage.task_repository import TaskRepository
 from .core import TaskService
 from .ui import render_tasks, TEMPLATES_CONFIG
-from typing import Optional, 
 import rich_click as click
 
 
@@ -40,8 +39,16 @@ class TaskCLI:
 
         render_tasks([task])
 
-    def edit_task(self, id: int,  )
+    def edit_task(self, id: int, status: TaskService, title: str, description: str):
+        """Edit a task"""
+        task = self.task_service.update_task_by_id(
+            id=id,
+            status=status,
+            title=title, 
+            description=description
+            )
 
+        render_tasks([task])
 
 @click.group()
 @click.pass_context
@@ -86,7 +93,20 @@ def del_command(ctx, id: str):
 @click.pass_context
 def add_command(ctx, title: str, description: str):
     """Add a new Task"""
-    print(type(description))
     ctx.obj.add_task(title=title, description=description)
+
+@cli.command("edit")
+@click.option(
+    "-s",
+    "--status",
+    type=click.Choice(TaskStatus, case_sensitive=False),
+    help="The new status of a task"
+)
+@click.option("-t", "--title", type=str, help="The new title of the task")
+@click.option("-d", "--description", type=str, help="The new description of the task")
+@click.pass_context
+def edit_command(ctx, id: int, title: str, description: str, status: TaskStatus):
+    """Edit a task by ID"""
+    ctx.obj.edit_task(id=id, title=title, description=description, status=status)
 
 
