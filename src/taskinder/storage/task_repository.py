@@ -1,104 +1,100 @@
+import sqlite3
 from pathlib import Path
-from typing import List, Dict, Any, Optional
-from ..models.task import Task, TaskStatus
-import json
+from typing import List, Optional
 
-JsonData = List[Dict[str, Any]]
+from taskinder.models.task import Task, TaskStatus
 
 
 class TaskRepository:
-    """
-    Manages storage of Task objects in a JSON file.
-    This class acts as a Repository, responsible for the 'translation'
-    layer between Task objects in memory and the JSON file data source.
-    """
+    def __init__(self, db_path: Path | str) -> None:
+        self.db_path = Path(db_path)
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._init_db()
 
-    def __init__(self, file_path: Path | str) -> None:
-        self.file_path = Path(file_path)
-        self.file_path.parent.mkdir(parents=True, exist_ok=True)
-        if not self.file_path.exists():
-            with open(self.file_path, "w", encoding="utf-8") as _file:
-                json.dump([], _file)
+    def _connect(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(str(self.db_path))
+        conn.row_factory = sqlite3.Row
+        return conn
 
-    def _load_data(self) -> JsonData:
-        """Loads raw data from the JSON file."""
-        try:
-            with open(self.file_path, "r", encoding="utf-8") as _file:
-                if self.file_path.stat().st_size == 0:
-                    return []
-                data = json.load(_file)
-            if not isinstance(data, list):
-                raise TypeError(f"Data in {self.file_path} is not a list.")
-            return data
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Error decoding JSON from {self.file_path}: {e}")
-        except (TypeError, IOError) as e:
-            raise ValueError(f"Error loading data from {self.file_path}: {e}")
+    def _init_db(self) -> None:
+        with self._connect() as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS tasks (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    description TEXT DEFAULT '',
+                    status TEXT DEFAULT 'TODO',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+            conn.commit()
 
-    def _save_data(self, data: JsonData) -> None:
-        """Save raw data to the JSON file."""
-        try:
-            with open(self.file_path, "w", encoding="utf-8") as file_:
-                json.dump(data, file_, indent=4, ensure_ascii=False)
-        except IOError as e:
-            raise ValueError(f"Error saving data to {self.file_path}: {e}")
+    def _row_to_task(self, row: sqlite3.Row) -> Task:
+        return Task.from_dict(dict(row))
 
     def get_all(self) -> List[Task]:
-        """
-        Loads all tasks from the JSON file and converts them to Task objects.
-        """
-        raw_data = self._load_data()
-        return [Task.from_dict(item) for item in raw_data]
-
-    def save_all(self, tasks: List[Task]) -> None:
-        """
-        Convert a list of Task objects to a dictionary and save it to the file,
-        overwriting the previous content.
-        """
-        raw_data = [task.to_dict() for task in tasks]
-        self._save_data(raw_data)
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM tasks ORDER BY created_at DESC"
+            ).fetchall()
+        return [self._row_to_task(row) for row in rows]
 
     def add(self, task: Task) -> None:
-        """
-        Adds a single task to the JSON file.
-        This is less efficient than 'save_all' for multiple additions.
-        """
-        all_tasks = self.get_all()
-        all_tasks.append(task)
-        self.save_all(all_tasks)
+        d = task.to_dict()
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT INTO tasks VALUES (?, ?, ?, ?, ?, ?)",
+                (d["id"], d["title"], d["description"], d["status"],
+                 d["created_at"], d["updated_at"]),
+            )
+            conn.commit()
 
     def find_by_id(self, task_id: str) -> Optional[Task]:
-        """Finds a task by its ID."""
-        return next((task for task in self.get_all() if task.id == task_id), None)
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM tasks WHERE id = ?", (task_id,)
+            ).fetchone()
+        return self._row_to_task(row) if row else None
 
     def find_by_title(self, task_title: str) -> List[Task]:
-        """Finds all tasks with a given title."""
-        return [task for task in self.get_all() if task.title == task_title]
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM tasks WHERE title = ?", (task_title,)
+            ).fetchall()
+        return [self._row_to_task(row) for row in rows]
 
     def find_by_status(self, status: TaskStatus) -> List[Task]:
-        """Finds all tasks with a given status."""
-        return [task for task in self.get_all() if task.status == status]
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM tasks WHERE status = ?", (status.value,)
+            ).fetchall()
+        return [self._row_to_task(row) for row in rows]
 
     def update(self, updated_task: Task) -> None:
-        """Updates an existing task in the JSON file."""
-        all_tasks = self.get_all()
-        task_found = False
-        for i, task in enumerate(all_tasks):
-            if task.id == updated_task.id:
-                all_tasks[i] = updated_task
-                task_found = True
-                break
-        if not task_found:
-            raise ValueError(f"Task with ID '{updated_task.id}' not found.")
-        self.save_all(all_tasks)
+        d = updated_task.to_dict()
+        with self._connect() as conn:
+            result = conn.execute(
+                "UPDATE tasks SET title=?, description=?, status=?, updated_at=? WHERE id=?",
+                (d["title"], d["description"], d["status"], d["updated_at"], d["id"]),
+            )
+            conn.commit()
+        if result.rowcount == 0:
+            raise ValueError(f"Task '{updated_task.id}' not found.")
 
     def delete(self, task_id: str) -> None:
-        """Deletes a task by its ID."""
-        all_tasks = self.get_all()
-        original_count = len(all_tasks)
-        tasks_to_keep = [task for task in all_tasks if task.id != task_id]
+        with self._connect() as conn:
+            result = conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+            conn.commit()
+        if result.rowcount == 0:
+            raise ValueError(f"Task '{task_id}' not found.")
 
-        if len(tasks_to_keep) == original_count:
-            raise ValueError(f"Task with ID '{task_id}' not found.")
-
-        self.save_all(tasks_to_keep)
+    def count(self) -> dict[str, int]:
+        counts: dict[str, int] = {"TODO": 0, "DOING": 0, "DONE": 0}
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT status, COUNT(*) as cnt FROM tasks GROUP BY status"
+            ).fetchall()
+        for row in rows:
+            counts[row["status"]] = row["cnt"]
+        return counts
