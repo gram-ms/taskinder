@@ -15,7 +15,7 @@ dev = [
 ]
 
 [project.scripts]
-taskinder = "taskinder.__main__:main"
+taskinder = "taskinder.cli:app"
 
 [tool.setuptools.dynamic]
 version = {attr = "taskinder.__version__"}

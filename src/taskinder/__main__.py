@@ -1,9 +1,4 @@
-from taskinder.tui.app import TaskinderApp
-
-
-def main() -> None:
-    TaskinderApp().run()
-
+from taskinder.cli import app
 
 if __name__ == "__main__":
-    main()
+    app()

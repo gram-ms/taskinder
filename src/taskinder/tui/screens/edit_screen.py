@@ -11,17 +11,17 @@ from taskinder.models.task import Task, TaskStatus
 
 class EditScreen(ModalScreen[bool]):
     BINDINGS = [
-        Binding("ctrl+s", "save", "Salvar"),
-        Binding("escape", "cancel", "Cancelar"),
+        Binding("ctrl+s", "save", "Save"),
+        Binding("escape", "cancel", "Cancel"),
     ]
 
     DEFAULT_CSS = """
     EditScreen {
         align: center middle;
-        background: $background 70%;
+        background: $background 75%;
     }
     #edit-dialog {
-        width: 72;
+        width: 68;
         height: auto;
         background: $surface;
         border: heavy $primary;
@@ -32,20 +32,23 @@ class EditScreen(ModalScreen[bool]):
         color: $primary;
         text-align: center;
         margin-bottom: 1;
+        padding: 0 1;
     }
-    #edit-dialog Label {
-        color: $foreground;
+    #edit-dialog Label.field-label {
+        color: $text-muted;
+        text-style: dim;
+        margin-top: 1;
         margin-bottom: 0;
     }
     #input-title {
-        margin-bottom: 1;
+        margin-bottom: 0;
     }
     #input-desc {
-        height: 5;
-        margin-bottom: 1;
+        height: 4;
+        margin-bottom: 0;
     }
     #input-status {
-        margin-bottom: 1;
+        margin-bottom: 0;
     }
     #edit-buttons {
         align-horizontal: right;
@@ -59,33 +62,34 @@ class EditScreen(ModalScreen[bool]):
 
     def __init__(self, task: Task | None = None) -> None:
         super().__init__()
-        self.task = task
+        # double-underscore avoids conflict with Widget.task / Widget._task (asyncio)
+        self.__source = task
 
     @property
     def is_editing(self) -> bool:
-        return self.task is not None
+        return self.__source is not None
 
     def compose(self) -> ComposeResult:
-        title_val = self.task.title if self.task else ""
-        desc_val = self.task.description if self.task else ""
-        status_val = self.task.status if self.task else TaskStatus.TODO
-        heading = "✎  Editar Tarefa" if self.is_editing else "  Nova Tarefa"
+        title_val = self.__source.title if self.__source else ""
+        desc_val = self.__source.description if self.__source else ""
+        status_val = self.__source.status if self.__source else TaskStatus.TODO
+        heading = "󰏫  Edit Task" if self.is_editing else "  New Task"
 
         with Vertical(id="edit-dialog"):
             yield Label(heading, id="edit-heading")
-            yield Label("Título")
-            yield Input(value=title_val, placeholder="Título da tarefa...", id="input-title")
-            yield Label("Descrição")
+            yield Label("Title", classes="field-label")
+            yield Input(value=title_val, placeholder="What needs to be done?", id="input-title")
+            yield Label("Description", classes="field-label")
             yield TextArea(text=desc_val, id="input-desc")
-            yield Label("Status")
+            yield Label("Status", classes="field-label")
             yield Select(
                 options=[(s.value, s) for s in TaskStatus],
                 value=status_val,
                 id="input-status",
             )
             with Horizontal(id="edit-buttons"):
-                yield Button("Salvar", variant="primary", id="btn-save")
-                yield Button("Cancelar", id="btn-cancel")
+                yield Button("  Save", variant="primary", id="btn-save")
+                yield Button("  Cancel", id="btn-cancel")
 
     def on_mount(self) -> None:
         self.query_one("#input-title", Input).focus()
@@ -94,7 +98,7 @@ class EditScreen(ModalScreen[bool]):
         title = self.query_one("#input-title", Input).value.strip()
         if not title:
             self.query_one("#input-title", Input).focus()
-            self.app.notify("O título não pode ser vazio.", severity="error")
+            self.app.notify("Title cannot be empty.", severity="error")
             return
 
         desc = self.query_one("#input-desc", TextArea).text.strip()
@@ -103,7 +107,7 @@ class EditScreen(ModalScreen[bool]):
 
         service = self.app.service  # type: ignore[attr-defined]
         if self.is_editing:
-            service.update_task_by_id(self.task.id, title=title, description=desc, status=status)
+            service.update_task_by_id(self.__source.id, title=title, description=desc, status=status)
         else:
             new_task = service.create_task(title, desc)
             if status != TaskStatus.TODO:

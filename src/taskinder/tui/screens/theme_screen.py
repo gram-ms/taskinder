@@ -9,10 +9,10 @@ from textual.widgets import Footer, Label, ListItem, ListView
 
 class ThemeScreen(ModalScreen[bool]):
     BINDINGS = [
-        Binding("escape", "cancel", "Voltar"),
-        Binding("j", "cursor_down", "Baixo", show=False),
-        Binding("k", "cursor_up", "Cima", show=False),
-        Binding("enter", "select_theme", "Aplicar"),
+        Binding("escape", "cancel", "Back"),
+        Binding("j", "cursor_down", "Down", show=False),
+        Binding("k", "cursor_up", "Up", show=False),
+        Binding("enter", "select_theme", "Apply"),
     ]
 
     DEFAULT_CSS = """
@@ -54,12 +54,12 @@ class ThemeScreen(ModalScreen[bool]):
         active = mgr.get_active_theme_name()
 
         with Vertical(id="theme-dialog"):
-            yield Label("  Temas", id="theme-heading")
+            yield Label("  Themes", id="theme-heading")
             with ListView(id="theme-list"):
                 for name in themes:
                     marker = "  ●" if name == active else "   "
                     yield ListItem(Label(f"{marker}  {name}"), id=f"t-{name}")
-            yield Label("enter: aplicar · esc: voltar", id="theme-hint")
+            yield Label("enter: apply  ·  esc: back", id="theme-hint")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -90,7 +90,7 @@ class ThemeScreen(ModalScreen[bool]):
                 self.app.theme = name
             except Exception:
                 pass
-            self.app.notify(f"Tema aplicado: {name}")
+            self.app.notify(f"Theme applied: {name}")
         self.dismiss(True)
 
     def action_cancel(self) -> None:

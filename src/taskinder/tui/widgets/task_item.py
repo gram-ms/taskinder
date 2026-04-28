@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from textual.app import ComposeResult
-from textual.containers import Horizontal
+from textual.containers import Horizontal, Vertical
 from textual.widgets import Label, ListItem, ListView
 
 from taskinder.models.task import Task, TaskStatus
@@ -12,7 +12,7 @@ STATUS_ICONS: dict[TaskStatus, str] = {
     TaskStatus.DONE: "󰄲",
 }
 
-STATUS_CLASSES: dict[TaskStatus, str] = {
+STATUS_LABELS: dict[TaskStatus, str] = {
     TaskStatus.TODO: "todo",
     TaskStatus.DOING: "doing",
     TaskStatus.DONE: "done",
@@ -21,46 +21,47 @@ STATUS_CLASSES: dict[TaskStatus, str] = {
 
 def _relative_time(dt: datetime) -> str:
     delta = datetime.now() - dt
-    total_secs = int(delta.total_seconds())
-    if total_secs < 60:
+    secs = int(delta.total_seconds())
+    if secs < 60:
         return "agora"
-    if total_secs < 3600:
-        return f"{total_secs // 60}m atrás"
+    if secs < 3600:
+        return f"{secs // 60}m"
     if delta.days == 0:
-        return f"{total_secs // 3600}h atrás"
+        return f"{secs // 3600}h"
     if delta.days == 1:
         return "ontem"
     if delta.days < 7:
-        return f"{delta.days}d atrás"
+        return f"{delta.days}d"
     return dt.strftime("%d/%m")
 
 
 class TaskItem(ListItem):
     def __init__(self, task: Task) -> None:
         super().__init__()
-        self.task = task
-        self.add_class(STATUS_CLASSES[task.status])
+        # double-underscore to avoid conflict with Widget._task / Widget.task (asyncio)
+        self.__record = task
+        self.add_class(STATUS_LABELS[task.status])
+
+    @property
+    def data(self) -> Task:
+        return self.__record
 
     def compose(self) -> ComposeResult:
-        icon = STATUS_ICONS[self.task.status]
-        time_str = _relative_time(self.task.updated_at)
-        desc = self.task.description[:45] + "…" if len(self.task.description) > 45 else self.task.description
+        t = self.__record
+        icon = STATUS_ICONS[t.status]
+        time_str = _relative_time(t.updated_at)
+        desc = (t.description[:60] + "…") if len(t.description) > 60 else t.description
 
-        with Horizontal():
-            yield Label(icon, classes="task-icon")
-            yield Label(self.task.title, classes="task-title")
-            yield Label(desc, classes="task-desc")
-            yield Label(time_str, classes="task-time")
-
-    def update_task(self, task: Task) -> None:
-        self.task = task
-        self.remove_class("todo", "doing", "done")
-        self.add_class(STATUS_CLASSES[task.status])
-        self.query_one(".task-icon", Label).update(STATUS_ICONS[task.status])
-        self.query_one(".task-title", Label).update(task.title)
-        time_str = _relative_time(task.updated_at)
-        self.query_one(".task-time", Label).update(time_str)
+        with Vertical(classes="item-body"):
+            with Horizontal(classes="item-row-main"):
+                yield Label(icon, classes="task-icon")
+                yield Label(t.title, classes="task-title")
+                yield Label(time_str, classes="task-time")
+            if desc:
+                with Horizontal(classes="item-row-desc"):
+                    yield Label("", classes="task-icon-spacer")
+                    yield Label(desc, classes="task-desc")
 
 
 class TaskListView(ListView):
-    """Named subclass of ListView for CSS targeting."""
+    pass

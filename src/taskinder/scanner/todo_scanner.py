@@ -4,8 +4,8 @@ from pathlib import Path
 from typing import List
 
 TODO_PATTERN = re.compile(
-    r"(?:#|//|/\*|--|\*|<!--)\s*(TODO|FIXME|HACK|XXX|NOTE)\s*:?\s*(.+?)(?:\*/|-->)?\s*$",
-    re.IGNORECASE | re.MULTILINE,
+    r"(?:#|//|/\*|--|\*|<!--)\s*(TODO|FIXME|HACK|XXX|NOTE)\b\s*:?\s*(.+?)(?:\*/|-->)?\s*$",
+    re.MULTILINE,
 )
 
 EXTENSIONS = frozenset({
