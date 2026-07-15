@@ -90,6 +90,7 @@ class MainScreen(Screen):
     MainScreen {
         background: $background;
         layout: vertical;
+        overflow-y: hidden;
     }
 
     /* ── tabs ──────────────────────────────────── */
@@ -105,9 +106,6 @@ class MainScreen(Screen):
     TaskListView {
         background: $background;
         height: 1fr;
-        scrollbar-background: $surface;
-        scrollbar-color: $primary;
-        scrollbar-color-hover: $accent;
     }
     TaskItem {
         height: auto;
@@ -213,6 +211,7 @@ class MainScreen(Screen):
             lv.clear()
             for task in task_list:
                 lv.append(TaskItem(task))
+            lv.call_after_refresh(lv.sync_state)
 
     def action_cursor_down(self) -> None:
         self._active_list().action_cursor_down()

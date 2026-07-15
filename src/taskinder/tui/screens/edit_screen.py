@@ -88,8 +88,8 @@ class EditScreen(ModalScreen[bool]):
                 id="input-status",
             )
             with Horizontal(id="edit-buttons"):
-                yield Button("  Save", variant="primary", id="btn-save")
-                yield Button("  Cancel", id="btn-cancel")
+                yield Button("Save (Ctrl+S)", variant="primary", id="btn-save")
+                yield Button("Cancel (Esc)", id="btn-cancel")
 
     def on_mount(self) -> None:
         self.query_one("#input-title", Input).focus()
